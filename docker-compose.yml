@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: gestion-stages-db
+    environment:
+      POSTGRES_DB: gestion_des_stages
+      POSTGRES_USER: hels
+      POSTGRES_PASSWORD: hels
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hels -d gestion_des_stages"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./gestionDesStages
+      dockerfile: Dockerfile
+    container_name: gestion-stages-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_USERNAME: hels
+      DB_PASSWORD: hels
+      JWT_SECRET: F06PBJ6GzaTRCyiAycvwVHn0Mkgi9ztGpl6DIkULwtDcJ2y17uDwYS0XdrNjIIfWKAvWPoyAwBLHvHKnDzzPmmXWEpaRbWVG8zGkIViUWumw64U6nGOE2d5a7Zb9sQaOrmYfxCHTbPinjbSOoMuSJhk793ewS3COygGtNoAKjGZgiwzlWpIgAYDxTDHzJAL6gp8YEuxmq5CpovVtTm6V4hvEf3kA7zBmjWctjTULcXlQ2VjfhH6WI48lJ5gqBZWl
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gestion-stages-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  app-network:
+    driver: bridge
